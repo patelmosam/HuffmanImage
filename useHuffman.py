@@ -1,4 +1,4 @@
-from huff2 import Huffman
+from huffman import Huffman
 import sys
 
 path = 'images\\sample.bmp'
