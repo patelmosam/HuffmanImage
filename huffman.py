@@ -28,9 +28,24 @@ class Huffman:
         self.reverse_mapping = {}
         self.shape = None
 
-    def frequency_dict(self, array):
+    def convert_img_text(self,img):
+        string = ''
+        for i in img:
+            str1 = str(i)
+            if(len(str1)==2):
+                str1 = '0' + str1
+            if(len(str1)==1):
+                str1 = '00' + str1
+            if(len(str1)==3):
+                string = string + str1
+            else:
+                print("error in encoding image")
+                break
+        return string
+
+    def frequency_dict(self, im_text):
         frequency = {}
-        for value in array:
+        for value in im_text:
             if not value in frequency:
                 frequency[value] = 0
             frequency[value] += 1
@@ -78,9 +93,10 @@ class Huffman:
 
     def pad_encoded_img(self, encoded_img):
         extra_padding = 8 - len(encoded_img) % 8
+        print(extra_padding)
         for i in range(extra_padding):
             encoded_img += "0"
-        
+
         padded_info = "{0:08b}".format(extra_padding)
         encoded_img = padded_info + encoded_img
         return encoded_img
@@ -96,27 +112,6 @@ class Huffman:
             b.append(int(byte, 2))
         return b
 
-    def average_len(self, frequency):
-        totel = 0
-        length = 0
-        for i in frequency:
-            totel = totel + frequency[i]
-        for j in frequency:
-            length = length + len(self.codes[j])*frequency[j]
-            avg_len = length/totel
-
-        return avg_len
-
-    def get_info_txt(self, encoded_text):
-        string = ''
-        for i in encoded_text:
-            string = string + str(i)
-			#string = string + str(self.codes[i])
-        #info_len = len(string)
-		
-        encoded_text = encoded_text + string
-        return encoded_text
-
     def compress(self):
         filename, file_extension = os.path.splitext(self.path)
         output_path = filename + ".bin"
@@ -124,26 +119,24 @@ class Huffman:
         file = Image.open(self.path)
 
         img = np.array(file)
-        #print(img)
+        print(img)
         self.shape = img.shape
         img = img.flatten()
-        print('no. of elements: ',len(img))
-        frequency = self.frequency_dict(img)
+        im_text = self.convert_img_text(img)
+        print(len(im_text))
+        frequency = self.frequency_dict(im_text)
+        print(frequency)
         self.make_heap(frequency)
-        print('length of freq_dict: ',len(frequency))
-        #print(frequency)
         self.merge_nodes()
         self.make_codes()
-        alength = self.average_len(frequency)
-        print('average length: ',self.average_len(frequency))
-        print('compession ratio: ',8/alength)
+        print(self.codes)
         print('50%')
-        encoded_img = self.get_encoded_img(img)
+        encoded_img = self.get_encoded_img(im_text)
         print('75%')
         padded_encoded_img = self.pad_encoded_img(encoded_img)
         print('80%')
         byte_array = self.get_byte_array(padded_encoded_img)
-        #print(len(byte_array))
+        print(len(byte_array))
         output = open(output_path, 'wb')
         output.write(bytes(byte_array))
 
@@ -189,7 +182,6 @@ class Huffman:
 
             decompressed_img = self.decode_img(encoded_img)
             decompressed_img = np.resize(decompressed_img, self.shape)
-            #print(decompressed_img)
             im = Image.fromarray(decompressed_img)
             im.save(output_path)
 
