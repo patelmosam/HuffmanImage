@@ -4,11 +4,11 @@ from PIL import Image
 import numpy as np
 
 class HeapNode:
-    def __init__(self, value, freq, n):
+    def __init__(self, value, freq):
         self.value = value
         self.freq = freq
-        self.branch = [None]*n
-        
+        self.left = None
+        self.right = None
         
     def __lt__(self, other):
         return self.freq < other.freq
@@ -36,66 +36,23 @@ class Huffman:
             frequency[value] += 1
         return frequency
     
-    def freq_dict_padding(self, frequency):
-        index = len(frequency)
-        if(index%9==0):
-            return frequency
-        new_index = (int(index/9) + 1)*9
-        for key in range(index+1,new_index+2):
-            frequency[key] = 0
-        return frequency
-
-    def make_heap_d(self, frequency):
+    def make_heap(self, frequency):
         for key in frequency:
-            node1 = HeapNode(key, frequency[key], 10)
-            heapq.heappush(self.heap, node1)
-    
-    def make_heap_b(self, frequency):
-        for key in frequency:
-            node2 = HeapNode(key, frequency[key], 2)
-            heapq.heappush(self.heap, node2)
+            node = HeapNode(key, frequency[key])
+            heapq.heappush(self.heap, node)
 
-    def merge_nodes_b(self):
+    def merge_nodes(self):
         while(len(self.heap)>1):
             node1 = heapq.heappop(self.heap)
             node2 = heapq.heappop(self.heap)
 
-            merged_b = HeapNode(None, node1.freq + node2.freq, 2)
-            merged_b.branch[0] = node1
-            merged_b.branch[1] = node2
+            merged = HeapNode(None, node1.freq + node2.freq)
+            merged.left = node1
+            merged.right = node2
 
-            heapq.heappush(self.heap, merged_b)            
+            heapq.heappush(self.heap, merged)            
 
-    def merge_nodes_d(self):
-        while(len(self.heap)>1):
-            node1 = heapq.heappop(self.heap)
-            node2 = heapq.heappop(self.heap)
-            node3 = heapq.heappop(self.heap)
-            node4 = heapq.heappop(self.heap)
-            node5 = heapq.heappop(self.heap)
-            node6 = heapq.heappop(self.heap)
-            node7 = heapq.heappop(self.heap)
-            node8 = heapq.heappop(self.heap)
-            node9 = heapq.heappop(self.heap)
-            node10 = heapq.heappop(self.heap)
-
-            merged_d = HeapNode(None, node1.freq + node2.freq + node3.freq + node4.freq + node5.freq
-                              + node6.freq + node7.freq + node8.freq + node9.freq + node10.freq, 10)
-            merged_d.branch[0] = node1
-            merged_d.branch[1] = node2
-            merged_d.branch[2] = node3
-            merged_d.branch[3] = node4
-            merged_d.branch[4] = node5
-            merged_d.branch[5] = node6
-            merged_d.branch[6] = node7
-            merged_d.branch[7] = node8
-            merged_d.branch[8] = node9
-            merged_d.branch[9] = node10
-            #print('1')
-            heapq.heappush(self.heap, merged_d)
-
-    def make_codes_helper_b(self, root, current_code):
-        ''' makes bineray codes'''
+    def make_codes_helper(self, root, current_code):
         if(root == None):
             return
 
@@ -104,54 +61,31 @@ class Huffman:
             self.reverse_mapping[current_code] = root.value
             return
 
-        self.make_codes_helper_b(root.branch[0], current_code + "0")
-        self.make_codes_helper_b(root.branch[1], current_code + "1")
-
-    def make_codes_helper_d(self, root, current_code):
-        ''' makes decimal codes '''
-        if(root == None):
-            return
-
-        if(root.value != None):
-            self.codes[root.value] = current_code
-            self.reverse_mapping[current_code] = root.value
-            return
-
-        self.make_codes_helper_d(root.branch[0], current_code + "0")
-        self.make_codes_helper_d(root.branch[1], current_code + "1")
-        self.make_codes_helper_d(root.branch[2], current_code + "2")
-        self.make_codes_helper_d(root.branch[3], current_code + "3")
-        self.make_codes_helper_d(root.branch[4], current_code + "4")
-        self.make_codes_helper_d(root.branch[5], current_code + "5")
-        self.make_codes_helper_d(root.branch[6], current_code + "6")
-        self.make_codes_helper_d(root.branch[7], current_code + "7")
-        self.make_codes_helper_d(root.branch[8], current_code + "8")
-        self.make_codes_helper_d(root.branch[9], current_code + "9")
+        self.make_codes_helper(root.left, current_code + "0")
+        self.make_codes_helper(root.right, current_code + "1")
 
 
-    def make_codes_b(self):
+    def make_codes(self):
         root = heapq.heappop(self.heap)
         current_code = ""
-        self.make_codes_helper_b(root, current_code)
-
-    def make_codes_d(self):
-        root = heapq.heappop(self.heap)
-        current_code = ""
-        self.make_codes_helper_d(root, current_code)
+        self.make_codes_helper(root, current_code)
 
     def get_encoded_img(self, img):
         encoded_string = ""
         for value in img:
             encoded_string += self.codes[value]
+        width, hight, depth = self.shape
+        shape_info = "{0:016b}{0:016b}{0:04b}".format(width, hight, depth)
+        encoded_string = shape_info + encoded_string
         return encoded_string
 
-    def pad_encoded_img(self, encoded_img):
+    def pad_encoded_img(self, encoded_img, length):
         extra_padding = 8 - len(encoded_img) % 8
         for i in range(extra_padding):
             encoded_img += "0"
-        
+
         padded_info = "{0:08b}".format(extra_padding)
-        encoded_img = padded_info + encoded_img
+        encoded_img = length + padded_info + encoded_img
         return encoded_img
 
     def get_byte_array(self, padded_encoded_img):
@@ -176,15 +110,40 @@ class Huffman:
 
         return avg_len
 
-    def get_info_txt(self, encoded_text):
+    def convert_img_text(self, img):
         string = ''
-        for i in encoded_text:
-            string = string + str(i)
-			#string = string + str(self.codes[i])
-        #info_len = len(string)
-		
-        encoded_text = encoded_text + string
-        return encoded_text
+        for i in img:
+            str1 = str(i)
+            if(len(str1)==2):
+                str1 = '0' + str1
+            if(len(str1)==1):
+                str1 = '00' + str1
+            if(len(str1)==3):
+                string = string + str1
+            else:
+                print("error in encoding image")
+                break
+        return string
+
+    def get_info_bytes(self):
+        lst1 = []
+        lst2 = []
+        str3 = ''
+        for i in self.codes:
+            lst1.append(i)
+            lst2.append(len(self.codes[i]))
+            str3 = str3 + str(self.codes[i])
+        str1 = self.convert_img_text(lst1)
+        str2 = ''
+        for i in lst2:
+            str2 = str2 + str(i)
+
+        #print(str1,str2,str3)
+        string =  str1 + str2 + str3
+        bytestr = bytes(string, 'utf-8')
+        length = "{0:016b}".format(len(bytestr))
+       # print(type(length))
+        return bytestr,length
 
     def compress(self):
         filename, file_extension = os.path.splitext(self.path)
@@ -196,35 +155,28 @@ class Huffman:
         #print(img)
         self.shape = img.shape
         img = img.flatten()
-        print('no. of elements: ',len(img))
+        print(len(img))
         frequency = self.frequency_dict(img)
-        frequency = self.freq_dict_padding(frequency)
-        self.make_heap_d(frequency)
-        print('length of freq_dict: ',len(frequency))
+        self.make_heap(frequency)
         #print(frequency)
-        self.merge_nodes_d()
-        self.make_codes_d()
-        alength = self.average_len(frequency)
-        print('average length : ',self.average_len(frequency))
-        print('compression ratio: ',8/alength)
-        print('25%')
-        encoded_img = self.get_encoded_img(img)
+        self.merge_nodes()
+        self.make_codes()
+        print(self.average_len(frequency))
         print('50%')
-        frequency_b = self.frequency_dict(encoded_img)
-        padded_encoded_img = self.pad_encoded_img(encoded_img)
-        self.make_heap_b(frequency_b)
-        self.merge_nodes_b()
-        self.make_codes_b()
-        alength = self.average_len(frequency)
-        print('average length b: ',self.average_len(frequency_b))
-        print('compression ratio b: ',8/alength)
-        print('70%')
-        encoded_img_b = self.get_encoded_img(padded_encoded_img)
-        padded_encoded_img_b = self.pad_encoded_img(encoded_img_b)
-        byte_array = self.get_byte_array(padded_encoded_img_b)
+        encoded_bytes, length = self.get_info_bytes()
+        encoded_img = self.get_encoded_img(img)
+        print('75%')
+        
+        padded_encoded_img = self.pad_encoded_img(encoded_img, length)
+        print('80%')
+        
+        byte_array = self.get_byte_array(padded_encoded_img)
+        
+        byte_string = byte_array + encoded_bytes
+        print(len(byte_string))
         print(len(byte_array))
         output = open(output_path, 'wb')
-        output.write(bytes(byte_array))
+        output.write(bytes(byte_string))
 
         print("Compressed")
         return output_path
